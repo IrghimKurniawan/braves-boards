@@ -1,121 +1,69 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from "react";
+import googleIcon from "./assets/google.png";
+import gridIcon from "./assets/Grid.png";
+import "./index.css";
+import { useEffect } from "react";
+
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [darkMode, setDarkMode] = useState(false);
 
+  useEffect(() => {
+    const saved = localStorage.getItem("theme");
+    if (saved === "true") setDarkMode(true);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("theme", darkMode);
+  }, [darkMode]);
+  const handleLogin = (e) => {
+    e.preventDefault();
+    console.log("Login Dengan: ", { email, password });
+    alert(`Login Dengan: ${email}`);
+  }
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
+    <div className={darkMode ? "dark" : ""}>
+      <div className="min-h-screen flex items-center justify-center 
+  bg-gray-100 dark:bg-gray-900 transition duration-300">
         <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          onClick={() => setDarkMode(!darkMode)}
+          className="absolute top-5 right-5 px-4 py-2 rounded 
+  bg-black text-white dark:bg-white dark:text-black"
         >
-          Count is {count}
+          {darkMode ? "Light" : "Dark"}
         </button>
-      </section>
 
-      <div className="ticks"></div>
+        <div className="bg-white dark:bg-gray-800 text-black dark:text-white p-8 rounded-xl">
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+          <div className="flex items-center justify-center gap-3 mb-2">
+
+
+
+            <h1 className="flex items-center justify-center gap-2 text-gray-800 dark:text-white text-lg font-semibold mb-6">
+              <span className="grid grid-cols-2 gap-0.5">
+                <span className="w-2 h-2 bg-gray-800 dark:bg-white"></span>
+                <span className="w-2 h-2 bg-gray-800 dark:bg-white"></span>
+                <span className="w-2 h-2 bg-gray-800 dark:bg-white"></span>
+                <span className="w-2 h-2 bg-gray-800 dark:bg-white"></span>
+              </span>
+
+              <span>
+                Braves <span className="text-blue-400">Board</span>
+              </span>
+            </h1>
+          </div>
+
+          {/* Google Sign-in Button */}
+          <button className="flex items-center justify-center gap-3 w-full border border-gray-300 py-2.5 px-4 rounded-lg hover:bg-gray-50 transition text-gray-700 font-medium text-sm">
+            <img src={googleIcon} alt="google" className="w-5 h-5" />
+            Sign in with Google
+          </button>
+
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      </div>
+    </div>
+  );
 }
-
-export default App
+export default App;
