@@ -3,12 +3,14 @@ import googleIcon from "./assets/google.png";
 import gridIcon from "./assets/Grid.png";
 import "./index.css";
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 
 function App() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [darkMode, setDarkMode] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const saved = localStorage.getItem("theme");
@@ -56,7 +58,10 @@ function App() {
           </div>
 
           {/* Google Sign-in Button */}
-          <button className="flex items-center justify-center gap-3 w-full border border-gray-300 py-2.5 px-4 rounded-lg hover:bg-gray-50 transition text-gray-700 font-medium text-sm">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="flex items-center justify-center gap-3 w-full border border-gray-300 py-2.5 px-4 rounded-lg hover:bg-gray-50 transition text-gray-700 font-medium text-sm"
+          >
             <img src={googleIcon} alt="google" className="w-5 h-5" />
             Sign in with Google
           </button>
