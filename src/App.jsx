@@ -43,18 +43,9 @@ function App() {
 
 
 
-            <h1 className="flex items-center justify-center gap-2 text-gray-800 dark:text-white text-lg font-semibold mb-6">
-              <span className="grid grid-cols-2 gap-0.5">
-                <span className="w-2 h-2 bg-gray-800 dark:bg-white"></span>
-                <span className="w-2 h-2 bg-gray-800 dark:bg-white"></span>
-                <span className="w-2 h-2 bg-gray-800 dark:bg-white"></span>
-                <span className="w-2 h-2 bg-gray-800 dark:bg-white"></span>
-              </span>
-
-              <span>
-                Braves <span className="text-blue-400">Board</span>
-              </span>
-            </h1>
+            <div className="p-5 text-lg font-semibold text-gray-700 border-b border-gray-200 flex items-center gap-1">
+              <img src={gridIcon} alt="" className="w-5" /> Braves <span className="text-blue-600">Board</span>
+            </div>
           </div>
 
           {/* Google Sign-in Button */}
