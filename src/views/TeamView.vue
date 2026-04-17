@@ -1,15 +1,14 @@
 <template>
-  <Layout>
+  <AppLayout>
     <h2 class="text-xl font-semibold text-gray-800 mb-4">Team</h2>
 
-    <!-- Tabs -->
     <div class="flex border-b border-gray-200 mb-4">
       <button
-        v-for="t in ['Members', 'Groups']"
+        v-for="t in tabs"
         :key="t"
-        @click="tab = t"
+        @click="activeTab = t"
         class="px-5 py-2.5 text-sm font-medium transition border-b-2 -mb-px"
-        :class="tab === t
+        :class="activeTab === t
           ? 'border-blue-600 text-blue-600'
           : 'border-transparent text-gray-500 hover:text-gray-700'"
       >
@@ -17,9 +16,7 @@
       </button>
     </div>
 
-    <!-- Members Tab -->
-    <template v-if="tab === 'Members'">
-      <!-- Filter bar -->
+    <template v-if="activeTab === 'Members'">
       <div class="bg-white border border-gray-200 rounded-lg flex items-center gap-0 mb-4 overflow-hidden">
         <span class="px-4 py-2.5 text-sm text-gray-400 border-r border-gray-200">Filter</span>
         <button v-for="label in ['All', 'Role', 'Group']" :key="label"
@@ -41,7 +38,6 @@
         </button>
       </div>
 
-      <!-- Members table -->
       <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="bg-gray-100 px-6 py-2 text-sm font-medium text-gray-600 border-b border-gray-200">Members</div>
         <table class="w-full text-sm">
@@ -76,8 +72,7 @@
       </div>
     </template>
 
-    <!-- Groups Tab -->
-    <template v-if="tab === 'Groups'">
+    <template v-if="activeTab === 'Groups'">
       <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div class="bg-gray-100 px-6 py-2 text-sm font-medium text-gray-600 border-b border-gray-200">Groups</div>
         <table class="w-full text-sm">
@@ -88,7 +83,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="g in defaultGroups" :key="g.id" class="border-b border-gray-100 hover:bg-gray-50 transition">
+            <tr v-for="g in groups" :key="g.id" class="border-b border-gray-100 hover:bg-gray-50 transition">
               <td class="px-6 py-3 text-gray-800 font-medium">{{ g.name }}</td>
               <td class="px-6 py-3 text-gray-600">{{ g.members }}</td>
             </tr>
@@ -96,30 +91,32 @@
         </table>
       </div>
     </template>
-  </Layout>
+  </AppLayout>
 </template>
 
-<script setup>
-import { ref, computed } from "vue";
-import Layout from "./Layout.vue";
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import AppLayout from '../components/AppLayout.vue'
+import type { TeamMember, TeamGroup } from '../types'
 
-const tab    = ref("Members");
-const search = ref("");
+const tabs: string[] = ['Members', 'Groups']
+const activeTab = ref<string>('Members')
+const search    = ref<string>('')
 
-const defaultMembers = [
-  { id: 1, name: "Alpha",   email: "Alpha@emailkerja.com",   role: "Frontend", group: "Internship" },
-  { id: 2, name: "Beta",    email: "Beta@emailkerja.com",    role: "Frontend", group: "Internship" },
-  { id: 3, name: "Charlie", email: "Charlie@emailkerja.com", role: "Backend",  group: "Internship" },
-];
+const members: TeamMember[] = [
+  { id: 1, name: 'Alpha',   email: 'Alpha@emailkerja.com',   role: 'Frontend', group: 'Internship' },
+  { id: 2, name: 'Beta',    email: 'Beta@emailkerja.com',    role: 'Frontend', group: 'Internship' },
+  { id: 3, name: 'Charlie', email: 'Charlie@emailkerja.com', role: 'Backend',  group: 'Internship' },
+]
 
-const defaultGroups = [
-  { id: 1, name: "Internship", members: 3 },
-];
+const groups: TeamGroup[] = [
+  { id: 1, name: 'Internship', members: 3 },
+]
 
-const filteredMembers = computed(() =>
-  defaultMembers.filter((m) => {
-    const q = search.value.toLowerCase();
-    return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q);
+const filteredMembers = computed<TeamMember[]>(() =>
+  members.filter(m => {
+    const q = search.value.toLowerCase()
+    return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
   })
-);
+)
 </script>

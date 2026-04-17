@@ -1,5 +1,5 @@
 <template>
-  <Layout>
+  <AppLayout>
     <div class="flex gap-6 overflow-x-auto pb-4">
       <div
         v-for="(board, index) in boards"
@@ -22,10 +22,12 @@
             v-for="(task, i) in board.tasks"
             :key="i"
             class="bg-white p-3 rounded-lg shadow-sm border cursor-pointer hover:shadow-md transition"
-            @click="openModal(task, board.title)"
+            @click="openModal(task)"
           >
             <h4 class="text-sm font-semibold text-gray-800">{{ task.title }}</h4>
-            <p class="text-xs text-gray-400 mt-1">{{ task.checklist.filter(c=>c.done).length }}/{{ task.checklist.length }} tasks</p>
+            <p class="text-xs text-gray-400 mt-1">
+              {{ task.checklist.filter(c => c.done).length }}/{{ task.checklist.length }} tasks
+            </p>
             <div class="flex justify-between items-center mt-3 text-xs text-gray-500">
               <span>
                 <font-awesome-icon icon="clock" class="mr-1" />
@@ -56,7 +58,6 @@
 
           <!-- Modal Top Bar -->
           <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
-            <!-- Status Dropdown -->
             <div class="relative">
               <button
                 @click="statusOpen = !statusOpen"
@@ -68,7 +69,7 @@
               <div v-if="statusOpen" class="absolute left-0 top-9 bg-white border border-gray-200 rounded-lg shadow-lg z-10 py-1 min-w-[120px]">
                 <button
                   v-for="s in statuses" :key="s"
-                  @click="selectedTask.status = s; statusOpen = false"
+                  @click="selectedTask!.status = s; statusOpen = false"
                   class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition"
                   :class="selectedTask.status === s ? 'text-blue-600 font-medium' : 'text-gray-700'"
                 >{{ s }}</button>
@@ -93,13 +94,12 @@
 
           <!-- Modal Body -->
           <div class="flex flex-1 overflow-hidden">
-
             <!-- LEFT COLUMN -->
             <div class="flex-1 overflow-y-auto px-6 py-5">
-
               <!-- Title -->
               <div class="flex items-start gap-3 mb-5">
-                <button @click="selectedTask.completed = !selectedTask.completed"
+                <button
+                  @click="selectedTask.completed = !selectedTask.completed"
                   class="mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 transition"
                   :class="selectedTask.completed ? 'bg-blue-600 border-blue-600' : 'border-gray-400'"
                 >
@@ -109,7 +109,7 @@
                 </button>
                 <h2
                   contenteditable="true"
-                  @blur="e => selectedTask.title = e.target.innerText"
+                  @blur="(e) => { if (selectedTask) selectedTask.title = (e.target as HTMLElement).innerText }"
                   class="text-xl font-bold text-gray-900 outline-none border-b-2 border-transparent focus:border-blue-400 flex-1 leading-tight"
                 >{{ selectedTask.title }}</h2>
               </div>
@@ -177,7 +177,7 @@
                     <p class="text-sm font-semibold text-gray-700">Objective</p>
                   </div>
                   <div class="flex gap-2">
-                    <button @click="toggleHideChecked" class="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1 hover:bg-gray-50 transition">
+                    <button @click="hideChecked = !hideChecked" class="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1 hover:bg-gray-50 transition">
                       {{ hideChecked ? 'Show checked items' : 'Hide checked items' }}
                     </button>
                     <button @click="selectedTask.checklist = []" class="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1 hover:bg-gray-50 transition">
@@ -186,24 +186,15 @@
                   </div>
                 </div>
 
-                <!-- Progress Bar -->
                 <div class="flex items-center gap-2 mb-3">
                   <span class="text-xs text-gray-500 w-8">{{ checklistProgress }}%</span>
                   <div class="flex-1 bg-gray-200 rounded-full h-1.5">
-                    <div
-                      class="bg-blue-500 h-1.5 rounded-full transition-all"
-                      :style="{ width: checklistProgress + '%' }"
-                    ></div>
+                    <div class="bg-blue-500 h-1.5 rounded-full transition-all" :style="{ width: checklistProgress + '%' }"></div>
                   </div>
                 </div>
 
-                <!-- Items -->
                 <div class="space-y-2">
-                  <div
-                    v-for="(item, i) in visibleChecklist"
-                    :key="i"
-                    class="flex items-center gap-3"
-                  >
+                  <div v-for="(item, i) in visibleChecklist" :key="i" class="flex items-center gap-3">
                     <input
                       type="checkbox"
                       v-model="item.done"
@@ -216,7 +207,6 @@
                   </div>
                 </div>
 
-                <!-- Add checklist item -->
                 <div v-if="showAddChecklist" class="mt-3 flex gap-2">
                   <input
                     v-model="newCheckItem"
@@ -228,10 +218,9 @@
                   <button @click="showAddChecklist = false; newCheckItem = ''" class="text-xs text-gray-500 px-2 hover:text-gray-700">✕</button>
                 </div>
               </div>
-
             </div>
 
-            <!-- RIGHT COLUMN: Comments & Activity -->
+            <!-- RIGHT COLUMN -->
             <div class="w-72 border-l border-gray-100 flex flex-col flex-shrink-0">
               <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                 <div class="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -243,7 +232,6 @@
                 </button>
               </div>
 
-              <!-- Comment Input -->
               <div class="px-4 py-3 border-b border-gray-100">
                 <input
                   v-model="newComment"
@@ -253,7 +241,6 @@
                 />
               </div>
 
-              <!-- Activity Feed -->
               <div class="flex-1 overflow-y-auto px-4 py-3 space-y-4">
                 <div v-for="(act, i) in selectedTask.activity" :key="i" class="flex gap-2.5">
                   <div
@@ -274,136 +261,132 @@
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
     </Teleport>
-  </Layout>
+  </AppLayout>
 </template>
 
-<script setup>
-import { ref, computed } from "vue";
-import Layout from "./Layout.vue";
-import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { library } from "@fortawesome/fontawesome-svg-core";
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import AppLayout from '../components/AppLayout.vue'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import { library } from '@fortawesome/fontawesome-svg-core'
 import {
   faClock, faPlay, faPlus, faTag, faCheckSquare, faPaperclip,
   faAlignLeft, faEye, faImage, faEllipsisH, faTimes, faCommentAlt,
-} from "@fortawesome/free-solid-svg-icons";
+} from '@fortawesome/free-solid-svg-icons'
+import type { Board, Task, ActivityItem } from '../types'
 
-library.add(
-  faClock, faPlay, faPlus, faTag, faCheckSquare, faPaperclip,
-  faAlignLeft, faEye, faImage, faEllipsisH, faTimes, faCommentAlt
-);
+library.add(faClock, faPlay, faPlus, faTag, faCheckSquare, faPaperclip, faAlignLeft, faEye, faImage, faEllipsisH, faTimes, faCommentAlt)
 
 // ─── State ───────────────────────────────────────────────────────────────────
-const selectedTask   = ref(null);
-const statusOpen     = ref(false);
-const showAddChecklist = ref(false);
-const newCheckItem   = ref("");
-const newComment     = ref("");
-const hideChecked    = ref(false);
-const showActivity   = ref(true);
+const selectedTask     = ref<Task | null>(null)
+const statusOpen       = ref<boolean>(false)
+const showAddChecklist = ref<boolean>(false)
+const newCheckItem     = ref<string>('')
+const newComment       = ref<string>('')
+const hideChecked      = ref<boolean>(false)
+const showActivity     = ref<boolean>(true)
 
-const statuses = ["To Do", "Doing", "In Review", "Done"];
+const statuses: string[] = ['To Do', 'Doing', 'In Review', 'Done']
 
-// ─── Board Data ───────────────────────────────────────────────────────────────
-const boards = ref([
-  { title: "To Do", tasks: [] },
+// ─── Board Data ──────────────────────────────────────────────────────────────
+const boards = ref<Board[]>([
+  { title: 'To Do', tasks: [] },
   {
-    title: "Doing",
+    title: 'Doing',
     tasks: [
       {
-        title: "First Board",
-        time: "0s",
-        status: "Doing",
+        title: 'First Board',
+        time: '0s',
+        status: 'Doing',
         completed: false,
-        description: "",
-        dueDate: "Apr 20, 24.00",
+        description: '',
+        dueDate: 'Apr 20, 24.00',
         members: [
-          { name: "Alpha Romeo", initial: "A", color: "bg-blue-500" },
-          { name: "Beta",        initial: "B", color: "bg-yellow-500" },
+          { name: 'Alpha Romeo', initial: 'A', color: 'bg-blue-500' },
+          { name: 'Beta',        initial: 'B', color: 'bg-yellow-500' },
         ],
         checklist: [
-          { label: "Task 1", done: true },
-          { label: "Task 2", done: false },
-          { label: "Task 3", done: false },
-          { label: "Task 4", done: false },
-          { label: "Task 5", done: false },
+          { label: 'Task 1', done: true },
+          { label: 'Task 2', done: false },
+          { label: 'Task 3', done: false },
+          { label: 'Task 4', done: false },
+          { label: 'Task 5', done: false },
         ],
         activity: [
           {
-            author: "Alpha Romeo", initial: "A", color: "bg-blue-500",
-            action: "",
-            date: "Apr 13, 2026, 13.23",
-            comment: { title: "Github - Link github project 1", body: "Berikut ini untuk link github projectnya" },
+            author: 'Alpha Romeo', initial: 'A', color: 'bg-blue-500',
+            action: '',
+            date: 'Apr 13, 2026, 13.23',
+            comment: { title: 'Github - Link github project 1', body: 'Berikut ini untuk link github projectnya' },
           },
-          { author: "Alpha Romeo", initial: "A", color: "bg-blue-500", action: "completed Task 1 on this card",       date: "Apr 13, 2026, 13.23" },
-          { author: "Alpha Romeo", initial: "A", color: "bg-blue-500", action: "set the due date on this card to 20 April at 24.00", date: "Apr 13, 2026, 12.54" },
-          { author: "Alpha Romeo", initial: "A", color: "bg-blue-500", action: "added objective to this card",        date: "Apr 13, 2026, 12.52" },
-          { author: "Alpha Romeo", initial: "A", color: "bg-blue-500", action: "added BETA to this card",             date: "Apr 13, 2026, 12.51" },
-          { author: "Alpha Romeo", initial: "A", color: "bg-blue-500", action: "joined this card",                    date: "Apr 13, 2026, 12.50" },
-          { author: "Alpha Romeo", initial: "A", color: "bg-blue-500", action: "added this card to Doing",            date: "Apr 13, 2026, 12.50" },
+          { author: 'Alpha Romeo', initial: 'A', color: 'bg-blue-500', action: 'completed Task 1 on this card',              date: 'Apr 13, 2026, 13.23' },
+          { author: 'Alpha Romeo', initial: 'A', color: 'bg-blue-500', action: 'set the due date on this card to 20 April',   date: 'Apr 13, 2026, 12.54' },
+          { author: 'Alpha Romeo', initial: 'A', color: 'bg-blue-500', action: 'added objective to this card',               date: 'Apr 13, 2026, 12.52' },
+          { author: 'Alpha Romeo', initial: 'A', color: 'bg-blue-500', action: 'added BETA to this card',                    date: 'Apr 13, 2026, 12.51' },
+          { author: 'Alpha Romeo', initial: 'A', color: 'bg-blue-500', action: 'joined this card',                           date: 'Apr 13, 2026, 12.50' },
+          { author: 'Alpha Romeo', initial: 'A', color: 'bg-blue-500', action: 'added this card to Doing',                   date: 'Apr 13, 2026, 12.50' },
         ],
       },
     ],
   },
-  { title: "In Review", tasks: [] },
-]);
+  { title: 'In Review', tasks: [] },
+])
 
 // ─── Computed ─────────────────────────────────────────────────────────────────
-const checklistProgress = computed(() => {
-  if (!selectedTask.value || selectedTask.value.checklist.length === 0) return 0;
-  const done = selectedTask.value.checklist.filter(c => c.done).length;
-  return Math.round((done / selectedTask.value.checklist.length) * 100);
-});
+const checklistProgress = computed((): number => {
+  if (!selectedTask.value || selectedTask.value.checklist.length === 0) return 0
+  const done = selectedTask.value.checklist.filter(c => c.done).length
+  return Math.round((done / selectedTask.value.checklist.length) * 100)
+})
 
 const visibleChecklist = computed(() => {
-  if (!selectedTask.value) return [];
+  if (!selectedTask.value) return []
   return hideChecked.value
     ? selectedTask.value.checklist.filter(c => !c.done)
-    : selectedTask.value.checklist;
-});
+    : selectedTask.value.checklist
+})
 
 // ─── Methods ──────────────────────────────────────────────────────────────────
-function openModal(task) {
-  selectedTask.value = task;
-  statusOpen.value   = false;
-  showAddChecklist.value = false;
+function openModal(task: Task): void {
+  selectedTask.value = task
+  statusOpen.value   = false
+  showAddChecklist.value = false
 }
 
-function closeModal() {
-  selectedTask.value = null;
+function closeModal(): void {
+  selectedTask.value = null
 }
 
-function addCheckItem() {
-  if (!newCheckItem.value.trim()) return;
-  selectedTask.value.checklist.push({ label: newCheckItem.value.trim(), done: false });
-  logActivity(`added ${newCheckItem.value.trim()} to this card`);
-  newCheckItem.value = "";
+function addCheckItem(): void {
+  if (!newCheckItem.value.trim() || !selectedTask.value) return
+  selectedTask.value.checklist.push({ label: newCheckItem.value.trim(), done: false })
+  logActivity(`added ${newCheckItem.value.trim()} to this card`)
+  newCheckItem.value = ''
 }
 
-function addComment() {
-  if (!newComment.value.trim()) return;
-  selectedTask.value.activity.unshift({
-    author: "Alpha Romeo", initial: "A", color: "bg-blue-500",
-    action: "",
-    date: new Date().toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-    comment: { title: "Comment", body: newComment.value.trim() },
-  });
-  newComment.value = "";
+function addComment(): void {
+  if (!newComment.value.trim() || !selectedTask.value) return
+  const entry: ActivityItem = {
+    author: 'Alpha Romeo', initial: 'A', color: 'bg-blue-500',
+    action: '',
+    date: new Date().toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    comment: { title: 'Comment', body: newComment.value.trim() },
+  }
+  selectedTask.value.activity.unshift(entry)
+  newComment.value = ''
 }
 
-function logActivity(action) {
-  selectedTask.value.activity.unshift({
-    author: "Alpha Romeo", initial: "A", color: "bg-blue-500",
+function logActivity(action: string): void {
+  if (!selectedTask.value) return
+  const entry: ActivityItem = {
+    author: 'Alpha Romeo', initial: 'A', color: 'bg-blue-500',
     action,
-    date: new Date().toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-  });
-}
-
-function toggleHideChecked() {
-  hideChecked.value = !hideChecked.value;
+    date: new Date().toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+  }
+  selectedTask.value.activity.unshift(entry)
 }
 </script>

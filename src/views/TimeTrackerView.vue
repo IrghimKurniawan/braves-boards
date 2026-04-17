@@ -1,5 +1,5 @@
 <template>
-  <Layout>
+  <AppLayout>
     <div class="bg-white p-4 rounded-xl shadow border mb-6 flex items-center gap-4">
       <input
         type="text"
@@ -47,35 +47,36 @@
         </div>
       </div>
     </div>
-  </Layout>
+  </AppLayout>
 </template>
 
-<script setup>
-import Layout from "./Layout.vue";
-import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { library } from "@fortawesome/fontawesome-svg-core";
-import { faPlay, faTag, faCalendar } from "@fortawesome/free-solid-svg-icons";
+<script setup lang="ts">
+import AppLayout from '../components/AppLayout.vue'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import { library } from '@fortawesome/fontawesome-svg-core'
+import { faPlay, faTag, faCalendar } from '@fortawesome/free-solid-svg-icons'
+import type { TrackerGroup } from '../types'
 
-library.add(faPlay, faTag, faCalendar);
+library.add(faPlay, faTag, faCalendar)
 
-const data = [
+const data: TrackerGroup[] = [
   {
-    date: "Thu, Apr 2",
-    total: "04:00:00",
+    date: 'Thu, Apr 2',
+    total: '04:00:00',
     items: [
       {
-        title: "Snap Journal - Fixing some bugs in home...",
-        project: "FS Internship",
-        time: "19.00 - 21.00",
-        duration: "02:00:00",
+        title: 'Snap Journal - Fixing some bugs in home...',
+        project: 'FS Internship',
+        time: '19.00 - 21.00',
+        duration: '02:00:00',
       },
       {
-        title: "Snap Journal - Adding theme feature...",
-        project: "FS Internship",
-        time: "15.00 - 16.00",
-        duration: "01:00:00",
+        title: 'Snap Journal - Adding theme feature...',
+        project: 'FS Internship',
+        time: '15.00 - 16.00',
+        duration: '01:00:00',
       },
     ],
   },
-];
+]
 </script>

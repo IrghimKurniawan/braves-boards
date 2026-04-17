@@ -1,12 +1,11 @@
 <template>
-  <Layout>
+  <AppLayout>
     <h2 class="text-xl font-semibold text-gray-800 mb-5">Projects</h2>
 
-    <!-- Filter bar -->
     <div class="bg-white border border-gray-200 rounded-lg flex items-center gap-0 mb-4 overflow-hidden">
       <span class="px-4 py-2.5 text-sm text-gray-400 border-r border-gray-200">Filter</span>
       <button
-        v-for="label in ['Active', 'Client', 'Acess']"
+        v-for="label in filterLabels"
         :key="label"
         class="flex items-center gap-1 px-4 py-2.5 text-sm text-gray-600 border-r border-gray-200 hover:bg-gray-50 transition"
       >
@@ -31,7 +30,6 @@
       </button>
     </div>
 
-    <!-- Table card -->
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div class="bg-gray-100 px-6 py-2 text-sm font-medium text-gray-600 border-b border-gray-200">
         Projects
@@ -89,50 +87,53 @@
         </tbody>
       </table>
     </div>
-  </Layout>
+  </AppLayout>
 </template>
 
-<script setup>
-import { ref, computed } from "vue";
-import Layout from "./Layout.vue";
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import AppLayout from '../components/AppLayout.vue'
+import type { Project } from '../types'
 
-const projects = ref([
-  { id: 1, name: "FS Internship", client: "-", tracked: "261,8h", progress: "-", access: "Public", starred: true,  color: "bg-green-500" },
-  { id: 2, name: "BE Internship", client: "-", tracked: "282,2h", progress: "-", access: "Public", starred: false, color: "bg-blue-400" },
-]);
+const filterLabels: string[] = ['Active', 'Client', 'Access']
 
-const search   = ref("");
-const sortKey  = ref(null);
-const sortDir  = ref(1);
+const projects = ref<Project[]>([
+  { id: 1, name: 'FS Internship', client: '-', tracked: '261,8h', progress: '-', access: 'Public', starred: true,  color: 'bg-green-500' },
+  { id: 2, name: 'BE Internship', client: '-', tracked: '282,2h', progress: '-', access: 'Public', starred: false, color: 'bg-blue-400' },
+])
 
-const cols = [
-  { label: "NAME",     key: "name" },
-  { label: "CLIENT",   key: "client" },
-  { label: "TRACKED",  key: "tracked" },
-  { label: "PROGRESS", key: "progress" },
-  { label: "ACCESS",   key: "access" },
-];
+const search  = ref<string>('')
+const sortKey = ref<keyof Project | null>(null)
+const sortDir = ref<number>(1)
 
-const toggleStar = (id) => {
-  const p = projects.value.find((p) => p.id === id);
-  if (p) p.starred = !p.starred;
-};
+const cols: { label: string; key: keyof Project }[] = [
+  { label: 'NAME',     key: 'name' },
+  { label: 'CLIENT',   key: 'client' },
+  { label: 'TRACKED',  key: 'tracked' },
+  { label: 'PROGRESS', key: 'progress' },
+  { label: 'ACCESS',   key: 'access' },
+]
 
-const handleSort = (key) => {
-  if (sortKey.value === key) sortDir.value *= -1;
-  else { sortKey.value = key; sortDir.value = 1; }
-};
+function toggleStar(id: number): void {
+  const p = projects.value.find(p => p.id === id)
+  if (p) p.starred = !p.starred
+}
 
-const filtered = computed(() => {
+function handleSort(key: keyof Project): void {
+  if (sortKey.value === key) sortDir.value *= -1
+  else { sortKey.value = key; sortDir.value = 1 }
+}
+
+const filtered = computed<Project[]>(() => {
   const sorted = [...projects.value].sort((a, b) => {
-    if (a.starred !== b.starred) return a.starred ? -1 : 1;
-    if (!sortKey.value) return 0;
-    const av = a[sortKey.value] || "";
-    const bv = b[sortKey.value] || "";
-    return av < bv ? -sortDir.value : av > bv ? sortDir.value : 0;
-  });
-  return sorted.filter((p) =>
+    if (a.starred !== b.starred) return a.starred ? -1 : 1
+    if (!sortKey.value) return 0
+    const av = String(a[sortKey.value] ?? '')
+    const bv = String(b[sortKey.value] ?? '')
+    return av < bv ? -sortDir.value : av > bv ? sortDir.value : 0
+  })
+  return sorted.filter(p =>
     p.name.toLowerCase().includes(search.value.toLowerCase())
-  );
-});
+  )
+})
 </script>

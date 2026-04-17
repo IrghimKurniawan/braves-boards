@@ -1,5 +1,5 @@
 <template>
-  <Layout>
+  <AppLayout>
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-xl font-semibold text-gray-700">
         Manage Tasks and Track Time Efficiently
@@ -15,9 +15,9 @@
       <p class="text-sm text-gray-500">0 tasks</p>
       <p class="text-xs text-gray-400 mt-2">Total Time : 0s</p>
     </div>
-  </Layout>
+  </AppLayout>
 </template>
 
-<script setup>
-import Layout from "./Layout.vue";
+<script setup lang="ts">
+import AppLayout from '../components/AppLayout.vue'
 </script>
