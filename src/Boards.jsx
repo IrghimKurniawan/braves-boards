@@ -5,7 +5,6 @@ import { useState } from "react";
 
 export default function Boards() {
 
-    // 🔥 nanti ini bisa dari API
     const boards = [
         {
             title: "To Do",
