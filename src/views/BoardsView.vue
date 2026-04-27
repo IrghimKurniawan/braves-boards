@@ -11,7 +11,7 @@
           <h3 class="text-sm font-semibold text-gray-700">
             {{ board.title }} ({{ board.tasks.length }})
           </h3>
-          <span class="cursor-pointer text-gray-400">⋮</span>
+          <span class="text-gray-400 flex-shrink-0">⋮</span>
         </div>
 
         <div class="flex-1 space-y-3 overflow-y-auto">
@@ -27,12 +27,17 @@
             <h4 class="text-sm font-semibold text-gray-800">{{ task.title }}</h4>
             <p class="text-xs text-gray-400 mt-1">{{ task.checklist.filter(c => c.done).length }}/{{ task.checklist.length }} tasks</p>
             <div class="flex justify-between items-center mt-3 text-xs text-gray-500">
-              <span>
+              <span :class="activeTimerTaskId === task.id ? 'text-green-500 font-semibold' : ''">
                 <font-awesome-icon icon="clock" class="mr-1" />
                 {{ task.time }}
               </span>
-              <button class="border px-2 py-1 rounded text-xs hover:bg-gray-100" @click.stop>
-                <font-awesome-icon icon="play" class="mr-1" /> Start
+              <button
+                class="border px-2 py-1 rounded text-xs transition"
+                :class="activeTimerTaskId === task.id ? 'bg-red-50 border-red-300 text-red-500 hover:bg-red-100' : 'hover:bg-gray-100'"
+                @click.stop="handleTimerToggle(task)"
+              >
+                <font-awesome-icon :icon="activeTimerTaskId === task.id ? 'stop' : 'play'" class="mr-1" />
+                {{ activeTimerTaskId === task.id ? 'Stop' : 'Start' }}
               </button>
             </div>
           </div>
@@ -42,174 +47,98 @@
           + Add Card
         </button>
       </div>
+
+      <!-- + Add Board -->
+      <div class="min-w-[280px] flex-shrink-0">
+        <div v-if="!showNewBoard">
+          <button @click="showNewBoard = true" class="w-full text-sm text-gray-500 border-2 border-dashed border-gray-300 rounded-xl py-4 hover:border-blue-400 hover:text-blue-500 transition">
+            + Add Board
+          </button>
+        </div>
+        <div v-else class="bg-gray-100 rounded-xl border p-3">
+          <input
+            v-model="newBoardTitle"
+            @keyup.enter="handleCreateBoard"
+            @keyup.esc="showNewBoard = false; newBoardTitle = ''"
+            placeholder="Board title..."
+            autofocus
+            class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 transition mb-2"
+          />
+          <div class="flex gap-2">
+            <button @click="handleCreateBoard" :disabled="boardCreating || !newBoardTitle.trim()" class="flex-1 bg-blue-500 text-white text-xs py-1.5 rounded-lg hover:bg-blue-600 disabled:opacity-50 transition">
+              {{ boardCreating ? 'Creating...' : 'Add Board' }}
+            </button>
+            <button @click="showNewBoard = false; newBoardTitle = ''" class="text-xs text-gray-400 px-2 hover:text-gray-600">✕</button>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- ===================== MODAL ===================== -->
+    <!-- MODAL -->
     <Teleport to="body">
-      <div
-        v-if="selectedTask"
-        class="fixed inset-0 z-50 flex items-center justify-center"
-        style="background: rgba(0,0,0,0.65)"
-        @click.self="closeModal"
-      >
-        <div
-          class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 flex flex-col overflow-hidden"
-          style="max-height: 90vh"
-          @click="closeAllDropdowns"
-        >
+      <div v-if="selectedTask" class="fixed inset-0 z-50 flex items-center justify-center" style="background: rgba(0,0,0,0.65)" @click.self="closeModal">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-4 flex flex-col overflow-hidden" style="max-height: 90vh" @click="closeAllDropdowns">
 
-          <!-- Modal Top Bar -->
+          <!-- Top Bar -->
           <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
-
-            <!-- Status Dropdown -->
             <div class="relative">
-              <button
-                @click.stop="closeAllDropdowns(); statusOpen = !statusOpen"
-                class="flex items-center gap-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition"
-              >
+              <button @click.stop="closeAllDropdowns(); statusOpen = !statusOpen" class="flex items-center gap-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition">
                 {{ selectedTask.status }}
                 <svg class="w-3 h-3" viewBox="0 0 10 6" fill="currentColor"><path d="M0 0l5 6 5-6z"/></svg>
               </button>
               <div v-if="statusOpen" class="absolute left-0 top-10 bg-white border border-gray-200 rounded-xl shadow-xl z-20 py-1 min-w-[140px]">
-                <button
-                  v-for="s in statuses" :key="s"
-                  @click.stop="selectedTask.status = s; statusOpen = false"
-                  class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition"
-                  :class="selectedTask.status === s ? 'text-blue-600 font-semibold' : 'text-gray-700'"
-                >{{ s }}</button>
+                <button v-for="s in statuses" :key="s" @click.stop="selectedTask.status = s; statusOpen = false" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition" :class="selectedTask.status === s ? 'text-blue-600 font-semibold' : 'text-gray-700'">{{ s }}</button>
               </div>
             </div>
-
             <div class="flex items-center gap-1">
-              <!-- Cover button -->
-              <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition" title="Cover">
-                <font-awesome-icon icon="image" />
-              </button>
-              <!-- Watch button -->
-              <button
-                class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition"
-                :class="selectedTask._watching ? 'text-blue-500' : 'text-gray-500'"
-                title="Watch"
-                @click.stop="toggleWatch"
-              >
-                <font-awesome-icon icon="eye" />
-              </button>
-
-              <!-- ── Ellipsis Menu Button ── -->
+              <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition"><font-awesome-icon icon="image" /></button>
+              <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition" :class="selectedTask._watching ? 'text-blue-500' : 'text-gray-500'" @click.stop="toggleWatch"><font-awesome-icon icon="eye" /></button>
               <div class="relative">
-                <button
-                  @click.stop="closeAllDropdowns(); ellipsisOpen = !ellipsisOpen"
-                  class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition"
-                  :class="ellipsisOpen ? 'bg-gray-100' : ''"
-                  title="More options"
-                >
+                <button @click.stop="closeAllDropdowns(); ellipsisOpen = !ellipsisOpen" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 transition">
                   <font-awesome-icon icon="ellipsis-h" />
                 </button>
-
-                <!-- Ellipsis Dropdown Panel -->
-                <div
-                  v-if="ellipsisOpen"
-                  class="absolute right-0 top-10 bg-white border border-gray-200 rounded-xl shadow-xl z-20 w-52 py-1.5 overflow-hidden"
-                >
-                  <template v-for="(item, idx) in ellipsisMenuItems" :key="item.action">
-                    <!-- Divider before Share -->
+                <div v-if="ellipsisOpen" class="absolute right-0 top-10 bg-white border border-gray-200 rounded-xl shadow-xl z-20 w-52 py-1.5 overflow-hidden">
+                  <template v-for="item in ellipsisMenuItems" :key="item.action">
                     <div v-if="item.action === 'share'" class="border-t border-gray-100 my-1"></div>
-
-                    <button
-                      @click.stop="handleEllipsisAction(item.action)"
-                      class="w-full flex items-center gap-3 px-4 py-2 text-sm transition"
-                      :class="item.danger
-                        ? 'text-red-500 hover:bg-red-50'
-                        : 'text-gray-700 hover:bg-gray-50'"
-                    >
-                      <!-- Inline SVG icons -->
-                      <svg v-if="item.action === 'leave'" class="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"/></svg>
-                      <svg v-else-if="item.action === 'move'" class="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                      <svg v-else-if="item.action === 'copy'" class="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                      <svg v-else-if="item.action === 'mirror'" class="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
-                      <svg v-else-if="item.action === 'template'" class="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
-                      <svg v-else-if="item.action === 'watch'" class="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                      <svg v-else-if="item.action === 'share'" class="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/></svg>
-                      <svg v-else-if="item.action === 'archive'" class="w-4 h-4 flex-shrink-0 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
-
-                      <span>{{ item.label }}</span>
+                    <button @click.stop="handleEllipsisAction(item.action)" class="w-full flex items-center gap-3 px-4 py-2 text-sm transition" :class="item.danger ? 'text-red-500 hover:bg-red-50' : 'text-gray-700 hover:bg-gray-50'">
+                      {{ item.label }}
                     </button>
                   </template>
                 </div>
               </div>
-
-              <!-- Close -->
               <button @click.stop="closeModal" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 transition ml-1">
                 <font-awesome-icon icon="times" />
               </button>
             </div>
           </div>
 
-          <!-- Modal Body -->
+          <!-- Body -->
           <div class="flex flex-1 overflow-hidden">
 
-            <!-- LEFT COLUMN -->
+            <!-- LEFT -->
             <div class="flex-1 overflow-y-auto px-6 py-5">
-
               <!-- Title -->
               <div class="flex items-start gap-3 mb-5">
-                <button
-                  @click.stop="selectedTask.completed = !selectedTask.completed"
-                  class="mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 transition"
-                  :class="selectedTask.completed ? 'bg-blue-600 border-blue-600' : 'border-gray-400'"
-                >
-                  <svg v-if="selectedTask.completed" class="w-full h-full text-white p-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                  </svg>
+                <button @click.stop="selectedTask.completed = !selectedTask.completed" class="mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 transition" :class="selectedTask.completed ? 'bg-blue-600 border-blue-600' : 'border-gray-400'">
+                  <svg v-if="selectedTask.completed" class="w-full h-full text-white p-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
                 </button>
-                <h2
-                  contenteditable="true"
-                  @blur="e => selectedTask.title = e.target.innerText"
-                  class="text-xl font-bold text-gray-900 outline-none border-b-2 border-transparent focus:border-blue-400 flex-1 leading-tight"
-                >{{ selectedTask.title }}</h2>
+                <h2 contenteditable="true" @blur="e => selectedTask.title = e.target.innerText" class="text-xl font-bold text-gray-900 outline-none border-b-2 border-transparent focus:border-blue-400 flex-1 leading-tight">{{ selectedTask.title }}</h2>
               </div>
 
-              <!-- Action Buttons Row -->
+              <!-- Action Buttons -->
               <div class="flex flex-wrap gap-2 mb-6">
-
-                <!-- ── ADD Button ── -->
                 <div class="relative">
-                  <button
-                    @click.stop="closeAllDropdowns(); addMenuOpen = !addMenuOpen"
-                    class="flex items-center gap-1.5 text-xs border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 text-gray-600 transition font-medium"
-                    :class="addMenuOpen ? 'bg-gray-100 border-gray-400' : ''"
-                  >
+                  <button @click.stop="closeAllDropdowns(); addMenuOpen = !addMenuOpen" class="flex items-center gap-1.5 text-xs border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 text-gray-600 transition font-medium">
                     <font-awesome-icon icon="plus" /> Add
                   </button>
-
-                  <!-- Add Dropdown Panel -->
-                  <div
-                    v-if="addMenuOpen"
-                    class="absolute left-0 top-9 bg-white border border-gray-200 rounded-xl shadow-xl z-20 w-64 overflow-hidden"
-                  >
-                    <!-- Header -->
+                  <div v-if="addMenuOpen" class="absolute left-0 top-9 bg-white border border-gray-200 rounded-xl shadow-xl z-20 w-64 overflow-hidden">
                     <div class="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
                       <span class="text-xs font-semibold text-gray-500">Add to card</span>
-                      <button @click.stop="addMenuOpen = false" class="text-gray-400 hover:text-gray-600 transition">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                      </button>
+                      <button @click.stop="addMenuOpen = false" class="text-gray-400 hover:text-gray-600">✕</button>
                     </div>
-
-                    <!-- Items -->
                     <div class="py-1">
-                      <button
-                        v-for="item in addMenuItems" :key="item.action"
-                        @click.stop="handleAddAction(item.action)"
-                        class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition text-left"
-                      >
-                        <!-- Icon box -->
-                        <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-600">
-                          <svg v-if="item.action === 'labels'" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg>
-                          <svg v-else-if="item.action === 'dates'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                          <svg v-else-if="item.action === 'checklist'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                          <svg v-else-if="item.action === 'members'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                          <svg v-else-if="item.action === 'attachments'" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-                        </div>
+                      <button v-for="item in addMenuItems" :key="item.action" @click.stop="handleAddAction(item.action)" class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition text-left">
+                        <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-600 text-xs">+</div>
                         <div>
                           <p class="text-sm font-medium text-gray-800">{{ item.label }}</p>
                           <p class="text-xs text-gray-400 mt-0.5">{{ item.desc }}</p>
@@ -218,18 +147,17 @@
                     </div>
                   </div>
                 </div>
-
                 <button class="flex items-center gap-1.5 text-xs border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 text-gray-600 transition">
                   <font-awesome-icon icon="tag" /> Labels
                 </button>
-                <button
-                  @click.stop="closeAllDropdowns(); showAddChecklist = !showAddChecklist"
-                  class="flex items-center gap-1.5 text-xs border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 text-gray-600 transition"
-                >
+                <button @click.stop="closeAllDropdowns(); showAddChecklist = !showAddChecklist" class="flex items-center gap-1.5 text-xs border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 text-gray-600 transition">
                   <font-awesome-icon icon="check-square" /> Checklist
                 </button>
-                <button class="flex items-center gap-1.5 text-xs border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 text-gray-600 transition">
+                <button @click.stop="showAttachPanel = !showAttachPanel; showTimerLogs = false" class="flex items-center gap-1.5 text-xs border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 text-gray-600 transition" :class="showAttachPanel ? 'bg-gray-100 border-gray-400' : ''">
                   <font-awesome-icon icon="paperclip" /> Attachment
+                </button>
+                <button @click.stop="handleFetchTimerLogs(selectedTask.id); showAttachPanel = false" class="flex items-center gap-1.5 text-xs border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 text-gray-600 transition" :class="showTimerLogs ? 'bg-gray-100 border-gray-400' : ''">
+                  <font-awesome-icon icon="clock" /> Timer Logs
                 </button>
               </div>
 
@@ -238,13 +166,8 @@
                 <div>
                   <p class="text-xs text-gray-500 font-medium mb-2">Members</p>
                   <div class="flex items-center gap-1.5">
-                    <div
-                      v-for="(m, i) in selectedTask.members" :key="i"
-                      class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white cursor-pointer"
-                      :class="m.color"
-                      :title="m.name"
-                    >{{ m.initial }}</div>
-                    <button class="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-400 transition text-sm">+</button>
+                    <div v-for="(m, i) in selectedTask.members" :key="i" class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white" :class="m.color" :title="m.name">{{ m.initial }}</div>
+                    <button class="w-8 h-8 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:border-blue-400 text-sm">+</button>
                   </div>
                 </div>
                 <div>
@@ -256,18 +179,59 @@
                 </div>
               </div>
 
+              <!-- Attachments list -->
+              <div v-if="selectedTask.attachments?.length > 0" class="mb-6">
+                <div class="flex items-center gap-2 mb-2">
+                  <font-awesome-icon icon="paperclip" class="text-gray-400 text-xs" />
+                  <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Attachments</p>
+                </div>
+                <div class="space-y-2">
+                  <div v-for="(att, i) in selectedTask.attachments" :key="i" class="flex items-center justify-between gap-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 group hover:border-gray-300 transition">
+                    <div class="flex items-center gap-3 min-w-0">
+                      <img v-if="att.url && (att.type === 'image')" :src="att.url" class="w-12 h-12 rounded object-cover flex-shrink-0 border border-gray-200" />
+                      <div v-else class="w-12 h-12 rounded bg-gray-100 border border-gray-200 flex items-center justify-center flex-shrink-0">
+                        <font-awesome-icon icon="paperclip" class="text-gray-400" />
+                      </div>
+                      <div class="min-w-0">
+                        <a v-if="att.url" :href="att.url" target="_blank" class="text-xs font-medium text-blue-600 hover:underline block truncate max-w-[200px]">{{ att.title ?? att.url }}</a>
+                        <p v-else class="text-xs font-medium text-gray-700 truncate">{{ att.title ?? '-' }}</p>
+                        <p class="text-xs text-gray-400 mt-0.5">{{ att.type === 'image' ? 'Image' : att.type === 'link' ? 'Link' : 'File' }}</p>
+                      </div>
+                    </div>
+                    <button @click="handleDeleteAttachment(att.id, i)" class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition text-xs flex-shrink-0 px-1" title="Delete">✕</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Timer -->
+              <div class="mb-6 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <font-awesome-icon icon="clock" class="text-gray-500 text-sm" />
+                    <p class="text-sm font-semibold text-gray-700">Time Tracker</p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-mono font-semibold" :class="activeTimerTaskId === selectedTask.id ? 'text-green-600' : 'text-gray-500'">
+                      {{ activeTimerTaskId === selectedTask.id ? formatTimer(timerSeconds[selectedTask.id] || 0) : (selectedTask.time || '00:00:00') }}
+                    </span>
+                    <button @click.stop="handleTimerToggle(selectedTask)" class="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition" :class="activeTimerTaskId === selectedTask.id ? 'bg-red-100 text-red-600 hover:bg-red-200 border border-red-200' : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200'">
+                      <font-awesome-icon :icon="activeTimerTaskId === selectedTask.id ? 'stop' : 'play'" />
+                      {{ activeTimerTaskId === selectedTask.id ? 'Stop' : 'Start' }}
+                    </button>
+                    <button v-if="activeTimerTaskId === selectedTask.id" @click.stop="handleConfirmTimer(selectedTask.id)" class="text-xs text-blue-600 border border-blue-200 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition">
+                      Confirm
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <!-- Description -->
               <div class="mb-6">
                 <div class="flex items-center gap-2 mb-2">
                   <font-awesome-icon icon="align-left" class="text-gray-500 text-sm" />
                   <p class="text-sm font-semibold text-gray-700">Description</p>
                 </div>
-                <textarea
-                  v-model="selectedTask.description"
-                  placeholder="Add a more detailed description..."
-                  rows="3"
-                  class="w-full text-sm text-gray-600 border border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 resize-none transition placeholder-gray-400"
-                ></textarea>
+                <textarea v-model="selectedTask.description" placeholder="Add a more detailed description..." rows="3" class="w-full text-sm text-gray-600 border border-gray-200 rounded-lg px-3 py-2.5 outline-none focus:border-blue-400 resize-none transition placeholder-gray-400"></textarea>
               </div>
 
               <!-- Checklist -->
@@ -275,52 +239,34 @@
                 <div class="flex items-center justify-between mb-2">
                   <div class="flex items-center gap-2">
                     <font-awesome-icon icon="check-square" class="text-gray-500 text-sm" />
-                    <p class="text-sm font-semibold text-gray-700">Objective</p>
+                    <input v-model="selectedTask.checklistTitle" placeholder="Checklist title..." class="text-sm font-semibold text-gray-700 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-blue-400 outline-none transition w-40" />
                   </div>
                   <div class="flex gap-2">
-                    <button @click="hideChecked = !hideChecked" class="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1 hover:bg-gray-50 transition">
-                      {{ hideChecked ? 'Show checked items' : 'Hide checked items' }}
-                    </button>
-                    <button @click="selectedTask.checklist = []" class="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1 hover:bg-gray-50 transition">
-                      Delete
-                    </button>
+                    <button @click="hideChecked = !hideChecked" class="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1 hover:bg-gray-50 transition">{{ hideChecked ? 'Show checked' : 'Hide checked' }}</button>
+                    <button @click="selectedTask.checklist = []" class="text-xs text-gray-500 border border-gray-200 rounded-lg px-3 py-1 hover:bg-gray-50 transition">Delete</button>
                   </div>
                 </div>
-
                 <div class="flex items-center gap-2 mb-3">
                   <span class="text-xs text-gray-500 w-8">{{ checklistProgress }}%</span>
                   <div class="flex-1 bg-gray-200 rounded-full h-1.5">
                     <div class="bg-blue-500 h-1.5 rounded-full transition-all" :style="{ width: checklistProgress + '%' }"></div>
                   </div>
                 </div>
-
                 <div class="space-y-2">
                   <div v-for="(item, i) in visibleChecklist" :key="i" class="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      v-model="item.done"
-                      @change="logActivity(`completed ${item.label} on this card`)"
-                      class="w-4 h-4 rounded accent-blue-600 cursor-pointer flex-shrink-0"
-                    />
+                    <input type="checkbox" v-model="item.done" @change="logActivity(`completed ${item.label} on this card`)" class="w-4 h-4 rounded accent-blue-600 cursor-pointer flex-shrink-0" />
                     <span class="text-sm" :class="item.done ? 'line-through text-gray-400' : 'text-gray-700'">{{ item.label }}</span>
                   </div>
                 </div>
-
                 <div v-if="showAddChecklist" class="mt-3 flex gap-2">
-                  <input
-                    v-model="newCheckItem"
-                    @keyup.enter="addCheckItem"
-                    placeholder="Add an item..."
-                    class="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400 transition"
-                  />
+                  <input v-model="newCheckItem" @keyup.enter="addCheckItem" placeholder="Add an item..." class="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400 transition" />
                   <button @click="addCheckItem" class="bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg hover:bg-blue-600 transition">Add</button>
                   <button @click="showAddChecklist = false; newCheckItem = ''" class="text-xs text-gray-500 px-2 hover:text-gray-700">✕</button>
                 </div>
               </div>
-
             </div>
 
-            <!-- RIGHT COLUMN: Comments & Activity -->
+            <!-- RIGHT: Comments -->
             <div class="w-72 border-l border-gray-100 flex flex-col flex-shrink-0">
               <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                 <div class="flex items-center gap-2 text-sm font-semibold text-gray-700">
@@ -328,29 +274,25 @@
                   Comments and activity
                 </div>
                 <button @click="showActivity = !showActivity" class="text-xs text-gray-500 border border-gray-200 rounded-lg px-2 py-1 hover:bg-gray-50 transition">
-                  {{ showActivity ? 'Hide details' : 'Show details' }}
+                  {{ showActivity ? 'Hide' : 'Show' }}
                 </button>
               </div>
-
               <div class="px-4 py-3 border-b border-gray-100">
-                <input
-                  v-model="newComment"
-                  @keyup.enter="addComment"
-                  placeholder="Write a comments..."
-                  class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 transition placeholder-gray-400"
-                />
+                <input v-model="newComment" @keyup.enter="handleAddComment" :disabled="commentLoading" placeholder="Write a comment..." class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 transition placeholder-gray-400 disabled:opacity-50" />
+                <button @click="handleAddComment" :disabled="commentLoading || !newComment.trim()" class="mt-2 w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium py-1.5 rounded-lg transition">
+                  {{ commentLoading ? 'Sending...' : 'Send' }}
+                </button>
               </div>
-
               <div class="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-                <div v-for="(act, i) in selectedTask.activity" :key="i" class="flex gap-2.5">
-                  <div
-                    class="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white mt-0.5"
-                    :class="act.color || 'bg-blue-500'"
-                  >{{ act.initial }}</div>
+                <div v-for="(act, i) in selectedTask.activity" :key="i" class="flex gap-2.5 group">
+                  <div class="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white mt-0.5" :class="act.color || 'bg-blue-500'">{{ act.initial }}</div>
                   <div class="flex-1 min-w-0">
-                    <div class="flex items-baseline gap-1 flex-wrap">
-                      <span class="text-xs font-semibold text-gray-800">{{ act.author }}</span>
-                      <span class="text-xs text-gray-500">{{ act.action }}</span>
+                    <div class="flex items-baseline gap-1 flex-wrap justify-between">
+                      <div class="flex items-baseline gap-1">
+                        <span class="text-xs font-semibold text-gray-800">{{ act.author }}</span>
+                        <span class="text-xs text-gray-500">{{ act.action }}</span>
+                      </div>
+                      <button v-if="act.comment && act.id" @click="handleDeleteComment(act.id, i)" class="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition text-xs" title="Delete">✕</button>
                     </div>
                     <p class="text-xs text-blue-500 mt-0.5">{{ act.date }}</p>
                     <div v-if="act.comment" class="mt-1.5 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
@@ -361,8 +303,49 @@
                 </div>
               </div>
             </div>
-
           </div>
+
+          <!-- Attachment Panel -->
+          <div v-if="showAttachPanel" class="border-t border-gray-100 px-6 py-4 bg-gray-50 flex-shrink-0">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-sm font-semibold text-gray-700">Add Attachment</p>
+              <button @click="showAttachPanel = false; showAttachLink = false" class="text-gray-400 hover:text-gray-600 text-xs">✕ Close</button>
+            </div>
+            <div class="flex gap-2 flex-wrap">
+              <label class="cursor-pointer flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-600 hover:bg-white transition">
+                <font-awesome-icon icon="paperclip" />
+                {{ attachFileLoading ? 'Uploading...' : 'Upload File' }}
+                <input type="file" class="hidden" @change="handleUploadFile" :disabled="attachFileLoading" />
+              </label>
+              <button @click="showAttachLink = !showAttachLink" class="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-600 hover:bg-white transition">
+                🔗 Add Link
+              </button>
+            </div>
+            <div v-if="showAttachLink" class="mt-3 flex flex-col gap-2">
+              <input v-model="attachLinkTitle" placeholder="Title" class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400 transition" />
+              <input v-model="attachLinkUrl" placeholder="https://..." class="text-sm border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:border-blue-400 transition" />
+              <button @click="handleAddLink" :disabled="attachLinkLoading || !attachLinkTitle.trim() || !attachLinkUrl.trim()" class="bg-blue-500 text-white text-xs py-1.5 rounded-lg hover:bg-blue-600 disabled:opacity-40 transition">
+                {{ attachLinkLoading ? 'Adding...' : 'Add Link' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Timer Logs Panel -->
+          <div v-if="showTimerLogs" class="border-t border-gray-100 px-6 py-4 bg-gray-50 flex-shrink-0 max-h-48 overflow-y-auto">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-sm font-semibold text-gray-700">Timer Logs</p>
+              <button @click="showTimerLogs = false" class="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+            </div>
+            <div v-if="timerLogsLoading" class="text-xs text-gray-400">Loading...</div>
+            <div v-else-if="timerLogs.length === 0" class="text-xs text-gray-400">No logs yet.</div>
+            <div v-else class="space-y-1.5">
+              <div v-for="(log, i) in timerLogs" :key="i" class="flex justify-between text-xs text-gray-600 border-b border-gray-100 pb-1">
+                <span>{{ log.started_at ?? log.start ?? '-' }}</span>
+                <span class="font-medium text-gray-800">{{ log.duration ?? '-' }}</span>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
     </Teleport>
@@ -370,10 +353,7 @@
     <!-- Toast -->
     <Teleport to="body">
       <Transition name="toast">
-        <div
-          v-if="toast"
-          class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-gray-900 text-white text-sm px-5 py-2.5 rounded-xl shadow-lg pointer-events-none"
-        >
+        <div v-if="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-gray-900 text-white text-sm px-5 py-2.5 rounded-xl shadow-lg pointer-events-none">
           {{ toast }}
         </div>
       </Transition>
@@ -382,21 +362,32 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import Layout from "../components/AppLayout.vue";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { library } from "@fortawesome/fontawesome-svg-core";
 import {
-  faClock, faPlay, faPlus, faTag, faCheckSquare, faPaperclip,
+  faClock, faPlay, faStop, faPlus, faTag, faCheckSquare, faPaperclip,
   faAlignLeft, faEye, faImage, faEllipsisH, faTimes, faCommentAlt,
 } from "@fortawesome/free-solid-svg-icons";
+import {
+  addComment as apiAddComment,
+  deleteComment as apiDeleteComment,
+  uploadAttachmentFile as apiUploadFile,
+  addAttachmentLink as apiAddLink,
+  deleteAttachment as apiDeleteAttachment,
+} from '../services/boardService';
+import {
+  startTimer as apiStartTimer,
+  stopTimer as apiStopTimer,
+  pingTimer as apiPingTimer,
+  confirmTimer as apiConfirmTimer,
+  getTimerLogs as apiGetTimerLogs,
+} from '../services/timerService';
 
-library.add(
-  faClock, faPlay, faPlus, faTag, faCheckSquare, faPaperclip,
-  faAlignLeft, faEye, faImage, faEllipsisH, faTimes, faCommentAlt
-);
+library.add(faClock, faPlay, faStop, faPlus, faTag, faCheckSquare, faPaperclip, faAlignLeft, faEye, faImage, faEllipsisH, faTimes, faCommentAlt);
 
-// ─── UI State ─────────────────────────────────────────────────────────────────
+// ─── UI State ──────────────────────────────────────────────────
 const selectedTask     = ref(null);
 const statusOpen       = ref(false);
 const ellipsisOpen     = ref(false);
@@ -404,17 +395,188 @@ const addMenuOpen      = ref(false);
 const showAddChecklist = ref(false);
 const newCheckItem     = ref("");
 const newComment       = ref("");
+const commentLoading   = ref(false);
+const showAttachPanel  = ref(false);
+const showAttachLink   = ref(false);
+const attachLinkTitle  = ref("");
+const attachLinkUrl    = ref("");
+const attachLinkLoading = ref(false);
+const attachFileLoading = ref(false);
 const hideChecked      = ref(false);
 const showActivity     = ref(true);
 const toast            = ref("");
+const showNewBoard     = ref(false);
+const newBoardTitle    = ref("");
+const boardCreating    = ref(false);
 
+// ─── Timer State ───────────────────────────────────────────────
+const activeTimerTaskId = ref(null);
+const timerSeconds      = ref({});
+const timerLogs         = ref([]);
+const showTimerLogs     = ref(false);
+const timerLogsLoading  = ref(false);
+let tickInterval = null;
+let pingInterval = null;
+
+function formatTimer(seconds) {
+  const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
+  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+  const s = String(seconds % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
+
+function findTaskById(id) {
+  for (const board of boards.value) {
+    const t = board.tasks?.find(t => t.id === id);
+    if (t) return t;
+  }
+  return null;
+}
+
+function startTick(taskId) {
+  if (tickInterval) clearInterval(tickInterval);
+  tickInterval = setInterval(() => {
+    timerSeconds.value[taskId] = (timerSeconds.value[taskId] || 0) + 1;
+    const task = findTaskById(taskId);
+    if (task) task.time = formatTimer(timerSeconds.value[taskId]);
+  }, 1000);
+}
+
+function stopTick() {
+  if (tickInterval) { clearInterval(tickInterval); tickInterval = null; }
+}
+
+function startPing(taskId) {
+  if (pingInterval) clearInterval(pingInterval);
+  pingInterval = setInterval(async () => {
+    try { await apiPingTimer(taskId); } catch {}
+  }, 30000);
+}
+
+function stopPing() {
+  if (pingInterval) { clearInterval(pingInterval); pingInterval = null; }
+}
+
+async function handleTimerToggle(task) {
+  if (!task.id) { showToast("Task ID belum tersedia."); return; }
+
+  if (activeTimerTaskId.value && activeTimerTaskId.value !== task.id) {
+    await doStopTimer(activeTimerTaskId.value);
+  }
+
+  if (activeTimerTaskId.value === task.id) {
+    await doStopTimer(task.id);
+  } else {
+    try {
+      await apiStartTimer(task.id);
+      activeTimerTaskId.value = task.id;
+      if (!timerSeconds.value[task.id]) timerSeconds.value[task.id] = 0;
+      localStorage.setItem('active_timer_task_id', task.id);
+      localStorage.setItem('active_timer_task_title', task.title ?? '');
+      startTick(task.id);
+      startPing(task.id);
+      logActivity("started timer on this card");
+      showToast("Timer started ▶");
+    } catch (e) {
+      showToast(e?.response?.data?.error?.message || "Gagal memulai timer.");
+    }
+  }
+}
+
+async function doStopTimer(taskId) {
+  try {
+    await apiStopTimer(taskId);
+    stopTick();
+    stopPing();
+    const elapsed = timerSeconds.value[taskId] || 0;
+    activeTimerTaskId.value = null;
+    localStorage.removeItem('active_timer_task_id');
+    localStorage.removeItem('active_timer_task_title');
+    const task = findTaskById(taskId);
+    if (task) logActivityOn(task, `stopped timer — ${formatTimer(elapsed)}`);
+    showToast(`Timer stopped ⏹ — ${formatTimer(elapsed)}`);
+  } catch (e) {
+    showToast(e?.response?.data?.error?.message || "Gagal menghentikan timer.");
+  }
+}
+
+async function handleConfirmTimer(taskId) {
+  try {
+    await apiConfirmTimer(taskId);
+    showToast("Timer confirmed ✓");
+  } catch (e) {
+    showToast(e?.response?.data?.error?.message || "Gagal konfirmasi timer.");
+  }
+}
+
+async function handleFetchTimerLogs(taskId) {
+  if (!taskId) return;
+  timerLogsLoading.value = true;
+  showTimerLogs.value = true;
+  try {
+    timerLogs.value = await apiGetTimerLogs(taskId);
+  } catch {
+    showTimerLogs.value = false;
+    showToast("Gagal memuat timer logs.");
+  } finally {
+    timerLogsLoading.value = false;
+  }
+}
+
+// ─── Boards (hardcoded sementara) ──────────────────────────────
+const boards = ref([]);
+
+const testTask = {
+  id:             "ff67c7e0-0c3d-4271-8712-7b57a213df2d",
+  title:          "Test Task",
+  time:           "00:00:00",
+  status:         "To Do",
+  completed:      false,
+  description:    "",
+  dueDate:        "-",
+  _watching:      false,
+  members:        [],
+  checklist:      [],
+  checklistTitle: "Checklist",
+  activity:       [],
+  attachments:    [],
+};
+
+function initBoards() {
+  boards.value = [
+    { id: null, title: "To Do",     tasks: [testTask] },
+    { id: null, title: "Doing",     tasks: [] },
+    { id: null, title: "In Review", tasks: [] },
+    { id: null, title: "Done",      tasks: [] },
+  ];
+}
+
+async function handleCreateBoard() {
+  if (!newBoardTitle.value.trim() || boardCreating.value) return;
+  boardCreating.value = true;
+  try {
+    const title = newBoardTitle.value.trim();
+    boards.value.push({ id: null, title, tasks: [] });
+    newBoardTitle.value = "";
+    showNewBoard.value  = false;
+    showToast(`Board "${title}" created!`);
+  } catch (e) {
+    showToast("Gagal membuat board.");
+  } finally {
+    boardCreating.value = false;
+  }
+}
+
+onMounted(initBoards);
+onUnmounted(() => { stopTick(); stopPing(); });
+
+// ─── UI Helpers ────────────────────────────────────────────────
 function closeAllDropdowns() {
   statusOpen.value   = false;
   ellipsisOpen.value = false;
   addMenuOpen.value  = false;
 }
 
-// ─── Ellipsis Menu ────────────────────────────────────────────────────────────
 const ellipsisMenuItems = [
   { label: "Leave",         action: "leave",    danger: false },
   { label: "Move",          action: "move",     danger: false },
@@ -428,32 +590,20 @@ const ellipsisMenuItems = [
 
 function handleEllipsisAction(action) {
   ellipsisOpen.value = false;
-  if (action === "watch") { toggleWatch(); return; }
-  if (action === "share") {
-    navigator.clipboard?.writeText(window.location.href).catch(() => {});
-    showToast("Link copied to clipboard!");
-    return;
-  }
-  if (action === "archive") {
-    logActivity("archived this card");
-    showToast("Card archived.");
-    return;
-  }
-  if (action === "leave")    { logActivity("left this card");                showToast("You left this card."); return; }
-  if (action === "copy")     { showToast("Card copied — coming soon."); return; }
-  if (action === "move")     { showToast("Move card — coming soon."); return; }
-  if (action === "mirror")   { showToast("Mirror card — coming soon."); return; }
-  if (action === "template") { showToast("Saved as template — coming soon."); return; }
+  if (action === "watch")   { toggleWatch(); return; }
+  if (action === "share")   { navigator.clipboard?.writeText(window.location.href).catch(() => {}); showToast("Link copied!"); return; }
+  if (action === "archive") { logActivity("archived this card"); showToast("Card archived."); return; }
+  if (action === "leave")   { logActivity("left this card"); showToast("You left this card."); return; }
+  showToast("Coming soon.");
 }
 
 function toggleWatch() {
   if (!selectedTask.value) return;
   selectedTask.value._watching = !selectedTask.value._watching;
   logActivity(selectedTask.value._watching ? "is watching this card" : "stopped watching this card");
-  showToast(selectedTask.value._watching ? "You are now watching this card." : "Stopped watching this card.");
+  showToast(selectedTask.value._watching ? "Watching this card." : "Stopped watching.");
 }
 
-// ─── Add Menu ─────────────────────────────────────────────────────────────────
 const addMenuItems = [
   { label: "Labels",      action: "labels",      desc: "Organize, categorize, and prioritize" },
   { label: "Dates",       action: "dates",       desc: "Start date, due date, reminder" },
@@ -465,16 +615,9 @@ const addMenuItems = [
 function handleAddAction(action) {
   addMenuOpen.value = false;
   if (action === "checklist") { showAddChecklist.value = true; return; }
-  const msg = {
-    labels:      "Labels panel — coming soon.",
-    dates:       "Date picker — coming soon.",
-    members:     "Member picker — coming soon.",
-    attachments: "Attachment upload — coming soon.",
-  };
-  showToast(msg[action] || "Coming soon.");
+  showToast(`${action} — coming soon.`);
 }
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
 let toastTimer = null;
 function showToast(msg) {
   toast.value = msg;
@@ -482,53 +625,8 @@ function showToast(msg) {
   toastTimer = setTimeout(() => { toast.value = ""; }, 2500);
 }
 
-// ─── Statuses & Board Data ────────────────────────────────────────────────────
 const statuses = ["To Do", "Doing", "In Review", "Done"];
 
-const boards = ref([
-  { title: "To Do", tasks: [] },
-  {
-    title: "Doing",
-    tasks: [
-      {
-        title: "First Board",
-        time: "0s",
-        status: "Doing",
-        completed: false,
-        description: "",
-        dueDate: "Apr 20, 24.00",
-        _watching: false,
-        members: [
-          { name: "Alpha Romeo", initial: "A", color: "bg-blue-500" },
-          { name: "Beta",        initial: "B", color: "bg-yellow-500" },
-        ],
-        checklist: [
-          { label: "Task 1", done: true },
-          { label: "Task 2", done: false },
-          { label: "Task 3", done: false },
-          { label: "Task 4", done: false },
-          { label: "Task 5", done: false },
-        ],
-        activity: [
-          {
-            author: "Alpha Romeo", initial: "A", color: "bg-blue-500",
-            action: "", date: "Apr 13, 2026, 13.23",
-            comment: { title: "Github - Link github project 1", body: "Berikut ini untuk link github projectnya" },
-          },
-          { author: "Alpha Romeo", initial: "A", color: "bg-blue-500", action: "completed Task 1 on this card",            date: "Apr 13, 2026, 13.23" },
-          { author: "Alpha Romeo", initial: "A", color: "bg-blue-500", action: "set the due date on this card to 20 April", date: "Apr 13, 2026, 12.54" },
-          { author: "Alpha Romeo", initial: "A", color: "bg-blue-500", action: "added objective to this card",             date: "Apr 13, 2026, 12.52" },
-          { author: "Alpha Romeo", initial: "A", color: "bg-blue-500", action: "added BETA to this card",                  date: "Apr 13, 2026, 12.51" },
-          { author: "Alpha Romeo", initial: "A", color: "bg-blue-500", action: "joined this card",                         date: "Apr 13, 2026, 12.50" },
-          { author: "Alpha Romeo", initial: "A", color: "bg-blue-500", action: "added this card to Doing",                 date: "Apr 13, 2026, 12.50" },
-        ],
-      },
-    ],
-  },
-  { title: "In Review", tasks: [] },
-]);
-
-// ─── Computed ─────────────────────────────────────────────────────────────────
 const checklistProgress = computed(() => {
   if (!selectedTask.value || selectedTask.value.checklist.length === 0) return 0;
   const done = selectedTask.value.checklist.filter(c => c.done).length;
@@ -537,16 +635,15 @@ const checklistProgress = computed(() => {
 
 const visibleChecklist = computed(() => {
   if (!selectedTask.value) return [];
-  return hideChecked.value
-    ? selectedTask.value.checklist.filter(c => !c.done)
-    : selectedTask.value.checklist;
+  return hideChecked.value ? selectedTask.value.checklist.filter(c => !c.done) : selectedTask.value.checklist;
 });
 
-// ─── Methods ──────────────────────────────────────────────────────────────────
 function openModal(task) {
   selectedTask.value = task;
   closeAllDropdowns();
   showAddChecklist.value = false;
+  showAttachPanel.value  = false;
+  showTimerLogs.value    = false;
 }
 
 function closeModal() {
@@ -557,26 +654,106 @@ function closeModal() {
 function addCheckItem() {
   if (!newCheckItem.value.trim() || !selectedTask.value) return;
   selectedTask.value.checklist.push({ label: newCheckItem.value.trim(), done: false });
-  logActivity(`added ${newCheckItem.value.trim()} to this card`);
+  logActivity(`added "${newCheckItem.value.trim()}" to this card`);
   newCheckItem.value = "";
 }
 
-function addComment() {
-  if (!newComment.value.trim() || !selectedTask.value) return;
-  selectedTask.value.activity.unshift({
-    author: "Alpha Romeo", initial: "A", color: "bg-blue-500",
-    action: "",
-    date: new Date().toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
-    comment: { title: "Comment", body: newComment.value.trim() },
-  });
-  newComment.value = "";
+async function handleAddComment() {
+  const content = newComment.value.trim();
+  if (!content || !selectedTask.value || commentLoading.value) return;
+  if (!selectedTask.value.id) { showToast("Task ID belum tersedia."); return; }
+  commentLoading.value = true;
+  try {
+    await apiAddComment(selectedTask.value.id, content);
+    selectedTask.value.activity.unshift({
+      author: "You", initial: "Y", color: "bg-blue-500", action: "",
+      date: new Date().toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+      comment: { title: "Comment", body: content },
+    });
+    newComment.value = "";
+  } catch (e) {
+    showToast(e?.response?.data?.error?.message || "Gagal mengirim komentar.");
+  } finally {
+    commentLoading.value = false;
+  }
+}
+
+async function handleDeleteComment(commentId, index) {
+  if (!commentId) return;
+  try {
+    await apiDeleteComment(commentId);
+    selectedTask.value.activity.splice(index, 1);
+    showToast("Comment deleted.");
+  } catch (e) {
+    showToast(e?.response?.data?.error?.message || "Gagal menghapus komentar.");
+  }
+}
+
+async function handleUploadFile(event) {
+  const file = event.target.files?.[0];
+  if (!file || !selectedTask.value?.id) return;
+  attachFileLoading.value = true;
+  try {
+    const att = await apiUploadFile(selectedTask.value.id, file);
+    if (!selectedTask.value.attachments) selectedTask.value.attachments = [];
+    selectedTask.value.attachments.push({
+      id:    att.id        ?? null,
+      title: att.file_name ?? file.name,
+      type:  att.type      ?? 'image',
+      url:   att.file_url  ?? null,
+    });
+    logActivity(`attached file "${file.name}"`);
+    showToast(`File "${file.name}" uploaded!`);
+  } catch (e) {
+    showToast(e?.response?.data?.error?.message || "Gagal upload file.");
+  } finally {
+    attachFileLoading.value = false;
+    event.target.value = "";
+  }
+}
+
+async function handleAddLink() {
+  const title = attachLinkTitle.value.trim();
+  const url   = attachLinkUrl.value.trim();
+  if (!title || !url || !selectedTask.value?.id || attachLinkLoading.value) return;
+  attachLinkLoading.value = true;
+  try {
+    await apiAddLink(selectedTask.value.id, title, url);
+    if (!selectedTask.value.attachments) selectedTask.value.attachments = [];
+    selectedTask.value.attachments.push({ id: null, title, type: 'link', url });
+    logActivity(`attached link "${title}"`);
+    showToast(`Link "${title}" added!`);
+    attachLinkTitle.value = "";
+    attachLinkUrl.value   = "";
+    showAttachLink.value  = false;
+  } catch (e) {
+    showToast(e?.response?.data?.error?.message || "Gagal menambah link.");
+  } finally {
+    attachLinkLoading.value = false;
+  }
+}
+
+async function handleDeleteAttachment(attachId, index) {
+  if (!attachId) return;
+  try {
+    const att = selectedTask.value.attachments[index];
+    await apiDeleteAttachment(attachId);
+    selectedTask.value.attachments.splice(index, 1);
+    logActivity(`deleted attachment "${att?.title ?? 'file'}"`);
+    showToast("Attachment deleted.");
+  } catch (e) {
+    showToast(e?.response?.data?.error?.message || "Gagal menghapus attachment.");
+  }
 }
 
 function logActivity(action) {
-  if (!action || !selectedTask.value) return;
-  selectedTask.value.activity.unshift({
-    author: "Alpha Romeo", initial: "A", color: "bg-blue-500",
-    action,
+  if (!selectedTask.value) return;
+  logActivityOn(selectedTask.value, action);
+}
+
+function logActivityOn(task, action) {
+  task.activity.unshift({
+    author: "You", initial: "Y", color: "bg-blue-500", action,
     date: new Date().toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
   });
 }

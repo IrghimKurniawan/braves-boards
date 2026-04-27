@@ -16,7 +16,16 @@
       </button>
     </div>
 
-    <template v-if="activeTab === 'Members'">
+    <!-- Loading -->
+    <div v-if="loading" class="flex items-center justify-center h-40 text-gray-400 text-sm gap-2">
+      <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+      </svg>
+      Loading members...
+    </div>
+
+    <template v-if="activeTab === 'Members'" v-show="!loading">
       <div class="bg-white border border-gray-200 rounded-lg flex items-center gap-0 mb-4 overflow-hidden">
         <span class="px-4 py-2.5 text-sm text-gray-400 border-r border-gray-200">Filter</span>
         <button v-for="label in ['All', 'Role', 'Group']" :key="label"
@@ -95,28 +104,55 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppLayout from '../components/AppLayout.vue'
+import { getUsers } from '../services/boardService'
 import type { TeamMember, TeamGroup } from '../types'
 
 const tabs: string[] = ['Members', 'Groups']
 const activeTab = ref<string>('Members')
 const search    = ref<string>('')
+const loading   = ref(false)
 
-const members: TeamMember[] = [
-  { id: 1, name: 'Alpha',   email: 'Alpha@emailkerja.com',   role: 'Frontend', group: 'Internship' },
-  { id: 2, name: 'Beta',    email: 'Beta@emailkerja.com',    role: 'Frontend', group: 'Internship' },
-  { id: 3, name: 'Charlie', email: 'Charlie@emailkerja.com', role: 'Backend',  group: 'Internship' },
-]
+// Data dari API — groups di-derive dari members
+const members = ref<TeamMember[]>([])
 
-const groups: TeamGroup[] = [
-  { id: 1, name: 'Internship', members: 3 },
-]
-
-const filteredMembers = computed<TeamMember[]>(() =>
-  members.filter(m => {
-    const q = search.value.toLowerCase()
-    return m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
+const groups = computed<TeamGroup[]>(() => {
+  const map: Record<string, number> = {}
+  members.value.forEach(m => {
+    map[m.group] = (map[m.group] ?? 0) + 1
   })
-)
+  return Object.entries(map).map(([name, count], i) => ({
+    id: i + 1, name, members: count,
+  }))
+})
+
+const filteredMembers = computed<TeamMember[]>(() => {
+  const q = search.value.toLowerCase()
+  return members.value.filter(m =>
+    m.name.toLowerCase().includes(q) || m.email.toLowerCase().includes(q)
+  )
+})
+
+// ─── GET /users ───────────────────────────────────────────────
+async function fetchUsers() {
+  loading.value = true
+  try {
+    const raw: any[] = await getUsers()
+    // Normalisasi field backend → field TeamMember
+    members.value = raw.map((u, i) => ({
+      id:    u.id    ?? i,
+      name:  u.full_name ?? u.name ?? u.email?.split('@')[0] ?? 'Unknown',
+      email: u.email ?? '',
+      role:  u.role  ?? '-',
+      group: u.group ?? u.team ?? 'General',
+    }))
+  } catch {
+    // Kalau API gagal, biarkan tabel kosong — tidak crash
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchUsers)
 </script>
