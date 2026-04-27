@@ -13,8 +13,12 @@
     "@fortawesome/free-solid-svg-icons": "^6.5.1",
     "@fortawesome/vue-fontawesome": "^3.0.6",
     "axios": "^1.15.1",
+    "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
     "vue": "^3.4.0",
-    "vue-router": "^4.3.0"
+    "vue-router": "^4.3.0",
+    "vuedraggable": "^4.1.0",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.0",
