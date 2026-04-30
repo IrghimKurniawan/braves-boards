@@ -19,59 +19,64 @@
         </div>
 
         <!-- Task Cards -->
-        <div class="flex-1 overflow-y-auto px-2.5 py-2 flex flex-col gap-2">
+        <!-- Task Cards -->
+        <div class="flex-1 overflow-y-auto px-2.5 py-2">
           <div v-if="!board.tasks?.length" class="text-xs text-gray-400 text-center py-8">No tasks</div>
 
-          <div v-for="(task, i) in (board.tasks ?? [])" :key="i"
-            class="bg-white rounded-lg border border-gray-200 p-3 cursor-pointer hover:border-blue-400 hover:shadow-md transition-all group"
-            @click="openModal(task)">
+          <VueDraggable v-model="board.tasks" group="tasks" :data-column-id="board.id" animation="150"
+            ghost-class="opacity-40" chosen-class="shadow-lg" class="flex flex-col gap-2 min-h-[40px]"
+            @end="onTaskDragEnd">
+            <div v-for="task in board.tasks" :key="task.id" :data-id="task.id"
+              class="bg-white rounded-lg border border-gray-200 p-3 cursor-grab active:cursor-grabbing hover:border-blue-400 hover:shadow-md transition-all group"
+              @click="openModal(task)">
 
-            <div v-if="task.label" class="mb-2">
-              <span class="inline-block text-[11px] font-medium px-2.5 py-0.5 rounded-full"
-                :class="task.labelClass ?? 'bg-green-100 text-green-700'">{{ task.label }}</span>
-            </div>
-
-            <p class="text-sm text-gray-800 leading-snug mb-2 font-normal">{{ task.title }}</p>
-
-            <div class="flex flex-wrap gap-1.5 mb-2">
-              <span v-if="task.dueDate && task.dueDate !== '-'"
-                class="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-500">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                {{ task.dueDate }}
-              </span>
-              <span v-if="task.checklist?.length > 0" class="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded"
-                :class="task.checklist.filter((c: { done: boolean }) => c.done).length === task.checklist.length ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
-                ✓ {{task.checklist.filter((c: { done: boolean }) => c.done).length}}/{{ task.checklist.length }}
-              </span>
-              <span v-if="task.attachments?.length"
-                class="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-500">
-                📎 {{ task.attachments.length }}
-              </span>
-            </div>
-
-            <div class="flex items-center justify-between mt-1">
-              <div class="flex items-center gap-1 text-[11px] tabular-nums"
-                :class="activeTimerTaskId === task.id ? 'text-emerald-600 font-medium' : 'text-gray-400'">
-                <span class="w-1.5 h-1.5 rounded-full"
-                  :class="activeTimerTaskId === task.id ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'"></span>
-                {{ task.time || '00:00:00' }}
-                <button class="ml-1 text-[10px] px-1.5 py-0.5 rounded border transition"
-                  :class="activeTimerTaskId === task.id ? 'border-red-200 text-red-500 bg-red-50 hover:bg-red-100' : 'border-gray-200 text-gray-400 hover:bg-gray-100'"
-                  @click.stop="handleTimerToggle(task)">
-                  {{ activeTimerTaskId === task.id ? '⏹' : '▶' }}
-                </button>
+              <div v-if="task.label" class="mb-2">
+                <span class="inline-block text-[11px] font-medium px-2.5 py-0.5 rounded-full"
+                  :class="task.labelClass ?? 'bg-green-100 text-green-700'">{{ task.label }}</span>
               </div>
-              <div class="flex">
-                <div v-for="(m, mi) in (task.members ?? []).slice(0, 3)" :key="mi"
-                  class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-white"
-                  :class="m.color || 'bg-blue-400'" :style="(mi as number) > 0 ? 'margin-left: -6px' : ''"
-                  :title="m.name">{{ m.initial }}</div>
+
+              <p class="text-sm text-gray-800 leading-snug mb-2 font-normal">{{ task.title }}</p>
+
+              <div class="flex flex-wrap gap-1.5 mb-2">
+                <span v-if="task.dueDate && task.dueDate !== '-'"
+                  class="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-500">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  {{ task.dueDate }}
+                </span>
+                <span v-if="task.checklist?.length > 0" class="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded"
+                  :class="task.checklist.filter((c: { done: boolean }) => c.done).length === task.checklist.length ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'">
+                  ✓ {{task.checklist.filter((c: { done: boolean }) => c.done).length}}/{{ task.checklist.length }}
+                </span>
+                <span v-if="task.attachments?.length"
+                  class="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded bg-gray-100 text-gray-500">
+                  📎 {{ task.attachments.length }}
+                </span>
+              </div>
+
+              <div class="flex items-center justify-between mt-1">
+                <div class="flex items-center gap-1 text-[11px] tabular-nums"
+                  :class="activeTimerTaskId === task.id ? 'text-emerald-600 font-medium' : 'text-gray-400'">
+                  <span class="w-1.5 h-1.5 rounded-full"
+                    :class="activeTimerTaskId === task.id ? 'bg-emerald-500 animate-pulse' : 'bg-gray-300'"></span>
+                  {{ task.time || '00:00:00' }}
+                  <button class="ml-1 text-[10px] px-1.5 py-0.5 rounded border transition"
+                    :class="activeTimerTaskId === task.id ? 'border-red-200 text-red-500 bg-red-50 hover:bg-red-100' : 'border-gray-200 text-gray-400 hover:bg-gray-100'"
+                    @click.stop="handleTimerToggle(task)">
+                    {{ activeTimerTaskId === task.id ? '⏹' : '▶' }}
+                  </button>
+                </div>
+                <div class="flex">
+                  <div v-for="(m, mi) in (task.members ?? []).slice(0, 3)" :key="mi"
+                    class="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-white"
+                    :class="m.color || 'bg-blue-400'" :style="(mi as number) > 0 ? 'margin-left: -6px' : ''"
+                    :title="m.name">{{ m.initial }}</div>
+                </div>
               </div>
             </div>
-          </div>
+          </VueDraggable>
         </div>
 
         <!-- Add Card button -->
@@ -358,7 +363,7 @@
                   <p class="text-sm font-semibold text-gray-700">Subtasks</p>
                   <span class="text-xs text-gray-400 bg-gray-100 rounded-full px-2 py-0.5">
                     {{selectedTask.subtasks?.filter(s => s.completed).length ?? 0}}/{{ selectedTask.subtasks?.length
-                    ?? 0 }}
+                      ?? 0 }}
                   </span>
                 </div>
                 <button @click="addingSubtask = !addingSubtask"
@@ -564,6 +569,8 @@
 
 <script setup lang="ts">
 import draggable from 'vuedraggable'
+import { VueDraggable } from 'vue-draggable-plus'
+import { moveTask as apiMoveTask } from '../services/taskService'
 import { useRoute } from 'vue-router'
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import Layout from '../components/AppLayout.vue'
@@ -722,6 +729,24 @@ function startPing(taskId: string) {
 
 function stopPing() {
   if (pingInterval) { clearInterval(pingInterval); pingInterval = null }
+}
+async function onTaskDragEnd(event: any) {
+  const taskId = event.item?.dataset?.id
+  const toColumnId = event.to?.dataset?.columnId
+  const fromColumnId = event.from?.dataset?.columnId
+  const newIndex = event.newIndex ?? 0
+
+  console.log('drag end:', { taskId, fromColumnId, toColumnId, newIndex })
+
+  if (!taskId || !toColumnId || fromColumnId === toColumnId) return
+
+  try {
+    await apiMoveTask(taskId, toColumnId, newIndex + 1)
+    showToast('Task moved!')
+  } catch (e: any) {
+    showToast(e?.response?.data?.error?.message || 'Gagal memindahkan task.')
+    // JANGAN fetch ulang — biarkan vue-draggable handle UI
+  }
 }
 async function handleAddSubtask() {
   if (!newSubtaskTitle.value.trim() || !selectedTask.value) return
