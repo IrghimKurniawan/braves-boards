@@ -26,6 +26,8 @@ export interface Member {
 }
 
 export interface Task {
+  id: string
+  column_id: string  
   title: string
   time: string
   status: string

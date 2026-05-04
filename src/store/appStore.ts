@@ -2,7 +2,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getBoards, createBoard as apiCreateBoard } from '../services/boardService'
 import { getColumns, createColumn as apiCreateColumn } from '../services/columnService'
-import { getTasks, createTask as apiCreateTask, deleteTask as apiDeleteTask } from '../services/taskService'
+import {
+  getTasks,
+  createTask as apiCreateTask,
+  deleteTask as apiDeleteTask,
+  updateTask as apiUpdateTask,
+  moveTask as apiMoveTask,
+} from '../services/taskService'
+import { createSubtask as apiCreateSubtask, updateSubtask as apiUpdateSubtask, deleteSubtask as apiDeleteSubtask, completeSubtask as apiCompleteSubtask } from '../services/subtaskService'
 
 export const useAppStore = defineStore('app', () => {
   // ─── Boards ───────────────────────────────────────────
@@ -22,32 +29,17 @@ export const useAppStore = defineStore('app', () => {
     return board
   }
 
-  // ─── Columns (per board) ──────────────────────────────
+  // ─── Columns ──────────────────────────────────────────
   const columnsByBoard = ref<Record<string, any[]>>({})
 
   async function fetchColumns(boardId: string, force = false) {
     if (columnsByBoard.value[boardId] && !force) return
     try {
       const cols = await getColumns(boardId)
-      console.log('RAW cols dari API:', JSON.stringify(cols))  // log semua, bukan hanya cols[0]
       columnsByBoard.value[boardId] = cols.map((col: any) => ({
         id: col.id,
         title: col.title,
-        tasks: (col.tasks ?? []).map((task: any) => ({
-          id: task.id,
-          title: task.title,
-          checklist: task.checklist ?? [],
-          members: task.members ?? [],
-          activity: task.activity ?? [],
-          attachments: task.attachments ?? [],
-          time: task.time ?? '00:00:00',
-          dueDate: task.due_date ?? task.dueDate ?? '-',
-          label: task.label ?? null,
-          labelClass: task.labelClass ?? null,
-          description: task.description ?? '',
-          status: task.status ?? 'To Do',
-          completed: task.completed ?? false,
-        })),
+        tasks: normalizeTaskList(col.tasks ?? []),
       }))
     } catch (e) {
       console.error('fetchColumns RAW error:', e)
@@ -62,27 +54,18 @@ export const useAppStore = defineStore('app', () => {
     columnsByBoard.value[boardId].push(newCol)
     return newCol
   }
-  async function fetchTasks(columnId: string) {
-    const tasks = await getTasks(columnId)
-    // cari column di semua board dan update tasks-nya
-    for (const boardId in columnsByBoard.value) {
-      const col = columnsByBoard.value[boardId].find((c: any) => c.id === columnId)
-      if (col) {
-        col.tasks = tasks
-        break
-      }
-    }
-  }
 
-  async function addTask(columnId: string, title: string) {
-    const task = await apiCreateTask(columnId, title)
-
-    // normalize task agar field tidak undefined
-    const normalizedTask = {
+  // ─── Tasks ────────────────────────────────────────────
+  function normalizeTask(task: any, columnId?: string) {
+    return {
       id: task.id,
       title: task.title,
-      tasks: [],
       checklist: task.checklist ?? [],
+      subtasks: (task.subtasks ?? []).map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        completed: s.completed ?? false,
+      })),
       members: task.members ?? [],
       activity: task.activity ?? [],
       attachments: task.attachments ?? [],
@@ -93,32 +76,143 @@ export const useAppStore = defineStore('app', () => {
       description: task.description ?? '',
       status: task.status ?? 'To Do',
       completed: task.completed ?? false,
+      column_id: task.column_id ?? columnId ?? null,  // ← pakai columnId sebagai fallback
     }
+  }
 
+  function normalizeTaskList(tasks: any[], columnId?: string) {
+    return tasks.map(t => normalizeTask(t, columnId))
+  }
+
+  function findColById(columnId: string) {
     for (const boardId in columnsByBoard.value) {
       const col = columnsByBoard.value[boardId].find((c: any) => c.id === columnId)
-      if (col) {
-        col.tasks.push(normalizedTask)
-        break
+      if (col) return col
+    }
+    return null
+  }
+
+  function findTaskInStore(taskId: string): { col: any; idx: number } | null {
+    for (const boardId in columnsByBoard.value) {
+      for (const col of columnsByBoard.value[boardId]) {
+        const idx = col.tasks.findIndex((t: any) => t.id === taskId)
+        if (idx !== -1) return { col, idx }
       }
     }
-    return normalizedTask
+    return null
   }
+
+  async function fetchTasks(columnId: string) {
+    const tasks = await getTasks(columnId)
+    const col = findColById(columnId)
+    if (col) col.tasks = normalizeTaskList(tasks)
+  }
+
+  async function addTask(columnId: string, title: string) {
+    const task = await apiCreateTask(columnId, title)
+    const normalized = {
+      ...normalizeTask(task),
+      column_id: task.column_id ?? columnId,  // ← paksa pakai columnId yang dikirim
+    }
+    const col = findColById(columnId)
+    if (col) col.tasks.push(normalized)
+    return normalized
+  }
+
+  async function editTask(taskId: string, payload: object) {
+    await apiUpdateTask(taskId, payload)
+    const found = findTaskInStore(taskId)
+    if (found) {
+      found.col.tasks[found.idx] = { ...found.col.tasks[found.idx], ...payload }
+    }
+  }
+
   async function removeTask(taskId: string, columnId: string) {
     await apiDeleteTask(taskId)
+    const col = findColById(columnId)
+    if (col) col.tasks = col.tasks.filter((t: any) => t.id !== taskId)
+  }
+
+  async function moveTaskToColumn(taskId: string, fromColumnId: string, toColumnId: string) {
+    const toCol = findColById(toColumnId)
+    const position = 0
+
+    console.log('moveTask payload:', { taskId, column_id: toColumnId, position })  // ← log ini
+
+    await apiMoveTask(taskId, toColumnId, position)
+
+    const fromCol = findColById(fromColumnId)
+    if (fromCol && toCol) {
+      const idx = fromCol.tasks.findIndex((t: any) => t.id === taskId)
+      if (idx !== -1) {
+        const [task] = fromCol.tasks.splice(idx, 1)
+        task.column_id = toColumnId
+        toCol.tasks.push(task)
+      }
+    }
+  }
+  async function addSubtask(taskId: string, title: string) {
+    const res = await apiCreateSubtask(taskId, title)
+    const newSubtask = {
+      id: res.id ?? res,
+      title,
+      completed: false,
+    }
+    // cari task di store dan tambah subtask
     for (const boardId in columnsByBoard.value) {
-      const col = columnsByBoard.value[boardId].find((c: any) => c.id === columnId)
-      if (col) {
-        col.tasks = col.tasks.filter((t: any) => t.id !== taskId)
-        break
+      for (const col of columnsByBoard.value[boardId]) {
+        const task = col.tasks.find((t: any) => t.id === taskId)
+        if (task) {
+          if (!task.subtasks) task.subtasks = []
+          task.subtasks.push(newSubtask)
+          break
+        }
+      }
+    }
+    return newSubtask
+  }
+
+  async function toggleSubtask(subtaskId: string, taskId: string, completed: boolean) {
+    if (completed) {
+      await apiCompleteSubtask(subtaskId)
+    } else {
+      await apiUpdateSubtask(subtaskId, { title: undefined })
+    }
+    // update di store
+    for (const boardId in columnsByBoard.value) {
+      for (const col of columnsByBoard.value[boardId]) {
+        const task = col.tasks.find((t: any) => t.id === taskId)
+        if (task) {
+          const sub = task.subtasks?.find((s: any) => s.id === subtaskId)
+          if (sub) sub.completed = completed
+          break
+        }
+      }
+    }
+  }
+
+  async function removeSubtask(subtaskId: string, taskId: string) {
+    await apiDeleteSubtask(subtaskId)
+    for (const boardId in columnsByBoard.value) {
+      for (const col of columnsByBoard.value[boardId]) {
+        const task = col.tasks.find((t: any) => t.id === taskId)
+        if (task) {
+          task.subtasks = task.subtasks?.filter((s: any) => s.id !== subtaskId)
+          break
+        }
       }
     }
   }
 
   return {
     boards, boardsLoaded, fetchBoards, addBoard,
-    columnsByBoard, fetchColumns, addColumn, fetchTasks, addTask, removeTask,
+    columnsByBoard, fetchColumns, addColumn,
+    fetchTasks, addTask, editTask, removeTask, moveTaskToColumn,addSubtask, toggleSubtask, removeSubtask,
   }
 }, {
-  persist: true  // ← ini posisi yang benar
+  persist: {
+    key: 'app-store',
+    storage: localStorage,
+    pick: ['boards', 'boardsLoaded', 'columnsByBoard'],
+  }
 })
